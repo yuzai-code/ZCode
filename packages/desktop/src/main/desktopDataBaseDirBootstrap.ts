@@ -1,11 +1,6 @@
+import { resolveDesktopProfileSettingsFile } from "./desktopProfileSettingsPath.js";
 import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { setDataBaseDir } from "@zcode/services/node";
-
-function resolveBootstrapSettingsFile(homePath: string = homedir()): string {
-  return join(homePath, ".zcode", "v2", "setting.json");
-}
 
 function extractBootstrapDataBaseDir(rawValue: unknown): string | null {
   if (!rawValue || typeof rawValue !== "object") {
@@ -22,7 +17,7 @@ function extractBootstrapDataBaseDir(rawValue: unknown): string | null {
 }
 
 function readBootstrapDataBaseDirFromDisk(
-  settingsFile: string = resolveBootstrapSettingsFile(),
+  settingsFile: string = resolveDesktopProfileSettingsFile(),
 ): string | null {
   if (!existsSync(settingsFile)) {
     return null;
