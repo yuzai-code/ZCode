@@ -1,5 +1,6 @@
 import { realpath } from "node:fs/promises";
 import { resolve as resolvePath } from "node:path";
+import { spawn } from "node:child_process";
 import { Worker } from "node:worker_threads";
 import { createInterface } from "node:readline";
 import { z } from "zod";
@@ -106,7 +107,7 @@ export function prepareHostStorage(
   });
 }
 
-/** 在 Host 所属 Worker 运行同一 CLI bundle 的存储入口；Host 退出不会留下持锁孤儿进程。 */
+/** Host 统一管理 CLI Worker 或显式 Rust native 存储入口的握手与取消。 */
 export async function prepareSessionStorage(options: {
   cwd: string;
   env?: Record<string, string>;
@@ -123,27 +124,46 @@ export async function prepareSessionStorage(options: {
     workspaceKey: options.cwd,
     presentationSurface: "desktop",
   });
-  if (!command?.supportsStorageStartup || !command.storagePreparationEntry)
+  const rustDesktop = (options.env?.ZCODE_RUST_DESKTOP ?? process.env.ZCODE_RUST_DESKTOP) === "1";
+  const nativeCommand = process.env.ZCODE_AGENT_SERVER_COMMAND?.trim();
+  if (
+    !command ||
+    (rustDesktop
+      ? !nativeCommand
+      : !command.supportsStorageStartup || !command.storagePreparationEntry)
+  )
     throw statusError("unsupported_runtime");
   const entry = command.storagePreparationEntry;
   await new Promise<void>((resolve, reject) => {
-    const child = new Worker(entry, {
-      argv: ["app-server", "--stdio", "--prepare-storage", "--cwd", command.cwd ?? options.cwd],
-      env: { ...process.env, ...options.env, ...command.env },
-      stdin: true,
-      stdout: true,
-      stderr: true,
-    });
+    // 显式 Rust 模式沿用同一 Host 握手；native runtime 自己验证 sessions 目录。
+    const child = rustDesktop
+      ? spawn(nativeCommand!, ["app-server", "--stdio", "--desktop", "--prepare-storage"], {
+          cwd: command.cwd ?? options.cwd,
+          env: { ...process.env, ...options.env, ...command.env },
+          stdio: ["pipe", "pipe", "pipe"],
+        })
+      : new Worker(entry!, {
+          argv: ["app-server", "--stdio", "--prepare-storage", "--cwd", command.cwd ?? options.cwd],
+          env: { ...process.env, ...options.env, ...command.env },
+          stdin: true,
+          stdout: true,
+          stderr: true,
+        });
     const input = child.stdin!;
-    const lines = createInterface({ input: child.stdout });
+    const lines = createInterface({ input: child.stdout! });
     let settled = false;
     let prepared = false;
     let pathReceived = false;
     let preparedPath: string | undefined;
     let failure: unknown;
     const terminate = () => {
-      void child.terminate();
+      if ("terminate" in child) void child.terminate();
+      else child.kill("SIGKILL");
     };
+    const hostExit = () => {
+      terminate();
+    };
+    if (rustDesktop) process.once("exit", hostExit);
     const abort = () => {
       failure ??= statusError("transport_closed");
       terminate();
@@ -154,7 +174,7 @@ export async function prepareSessionStorage(options: {
     }, 30_000);
     options.signal.addEventListener("abort", abort, { once: true });
     // stdout 只有有界控制帧，stderr 排空但不把可能含本地路径的原始文本上报。
-    child.stderr.resume();
+    child.stderr!.resume();
     input.on("error", (error) => {
       failure ??= error;
       terminate();
@@ -206,8 +226,9 @@ export async function prepareSessionStorage(options: {
     child.once("error", (error) => {
       failure ??= error;
     });
-    child.once("exit", (code) => {
+    child.once(rustDesktop ? "close" : "exit", (code: number | null) => {
       settled = true;
+      if (rustDesktop) process.removeListener("exit", hostExit);
       clearTimeout(firstStateTimer);
       options.signal.removeEventListener("abort", abort);
       lines.close();
