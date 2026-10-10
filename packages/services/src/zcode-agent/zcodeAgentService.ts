@@ -1,4 +1,7 @@
-import { resolveRustDesktopPreferences } from "./rustDesktopPreferences.js";
+import {
+  resolveRustDesktopPreferences,
+  resolveDesktopAdvancedToolDefault,
+} from "./rustDesktopPreferences.js";
 import { requestPluginReferenceCatalog } from "#src/zcode-agent/pluginReferenceCatalogRequest.js";
 import {
   localTtftFactsSchema,
@@ -3240,6 +3243,7 @@ export function createZCodeAgentService(
     workspaceIdentity?: string;
     remoteSessionId?: string;
   }): boolean {
+    if (!resolveDesktopAdvancedToolDefault(true)) return false;
     if (!options?.resolveOffPeakClientConfig || !options.resolveOffPeakTaskService) return false;
     if (params.remoteSessionId) return false;
     return !params.workspaceIdentity || !isRemoteWorkspaceIdentity(params.workspaceIdentity);
@@ -3256,6 +3260,7 @@ export function createZCodeAgentService(
    * 与 Off-Peak 不同：远程 workspace 同样可用，所以这里不看 workspaceIdentity / remoteSessionId。
    */
   function resolveDynamicWorkflowGate(): Promise<boolean> {
+    if (!resolveDesktopAdvancedToolDefault(true)) return Promise.resolve(false);
     const resolve = options?.resolveDynamicWorkflowClientConfig;
     if (!resolve) return Promise.resolve(false);
     dynamicWorkflowGate ??= (async () => {
