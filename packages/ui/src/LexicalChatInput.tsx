@@ -1,3 +1,4 @@
+import { RUST_DESKTOP_CORE } from "@/lib/rustDesktopMode.js";
 /* eslint-disable max-lines */
 /**
  * LexicalChatInput — 基于 Lexical 的聊天输入框
@@ -1499,16 +1500,18 @@ export function LexicalChatInput({
           <LeadingChineseSlashAliasPlugin disabled={disabled} />
           <PasteCapturePlugin disabled={disabled} onPaste={onPaste} />
         </div>
-        <SlashCommandPlugin
-          workspacePath={workspacePath}
-          workspaceIdentity={workspaceIdentity}
-          sessionId={skillCatalogSessionId ?? taskId}
-          provider={activeTaskProvider}
-          container={triggerPanelContainer}
-          disabled={disabled}
-          excludedCommandNames={excludedSlashCommandNames}
-          appCommands={appSlashCommands}
-        />
+        {!RUST_DESKTOP_CORE ? (
+          <SlashCommandPlugin
+            workspacePath={workspacePath}
+            workspaceIdentity={workspaceIdentity}
+            sessionId={skillCatalogSessionId ?? taskId}
+            provider={activeTaskProvider}
+            container={triggerPanelContainer}
+            disabled={disabled}
+            excludedCommandNames={excludedSlashCommandNames}
+            appCommands={appSlashCommands}
+          />
+        ) : null}
         {enableMentionPanel ? (
           <MentionPlugin
             workspacePath={workspacePath}

@@ -1,3 +1,4 @@
+import { RUST_DESKTOP_CORE } from "@/lib/rustDesktopMode.js";
 /* oxlint-disable eslint(max-lines) -- 附件采集、分 scope 上传调度和生命周期必须在同一 hook 中原子收口。 */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/components/ui/toast.js";
@@ -627,6 +628,10 @@ export function useComposerAttachments(
 
   const addPreparedAttachments = useCallback(
     (selectedAttachments: ChatComposerAttachment[]) => {
+      if (RUST_DESKTOP_CORE) {
+        selectedAttachments.forEach(revokeChatComposerAttachment);
+        return;
+      }
       if (selectedAttachments.length === 0) return;
       const current = readComposerAttachmentScope(scopeKey);
       const remainingSlots = MAX_CHAT_ATTACHMENTS - current.length;
@@ -679,6 +684,7 @@ export function useComposerAttachments(
 
   const addAttachmentFiles = useCallback(
     (selectedFiles: File[]) => {
+      if (RUST_DESKTOP_CORE) return;
       addPreparedAttachments(
         selectedFiles.map((file) => {
           let localPath: string | undefined;
@@ -704,6 +710,7 @@ export function useComposerAttachments(
   );
 
   const openAttachmentPicker = useCallback(() => {
+    if (RUST_DESKTOP_CORE) return;
     if (readComposerAttachmentScope(scopeKey).length >= MAX_CHAT_ATTACHMENTS) {
       showAttachmentLimitWarning();
       return;
@@ -727,6 +734,10 @@ export function useComposerAttachments(
 
   const handleAttachmentInputChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
+      if (RUST_DESKTOP_CORE) {
+        event.currentTarget.value = "";
+        return;
+      }
       const files = Array.from(event.currentTarget.files ?? []);
       event.currentTarget.value = "";
       addAttachmentFiles(files);
@@ -736,6 +747,7 @@ export function useComposerAttachments(
 
   const handlePaste = useCallback(
     (event: ChatComposerPasteEvent) => {
+      if (RUST_DESKTOP_CORE) return;
       if (disabled || !event.clipboardData) return;
       const files = Array.from(event.clipboardData.files);
       const text = event.clipboardData.getData("text/plain");
@@ -845,6 +857,11 @@ export function useComposerAttachments(
         resetComposerDragFeedback();
         return;
       }
+      if (RUST_DESKTOP_CORE) {
+        event.preventDefault();
+        resetComposerDragFeedback();
+        return;
+      }
       const files = Array.from(event.dataTransfer.files);
       if (files.length > 0) {
         event.preventDefault();
@@ -857,6 +874,7 @@ export function useComposerAttachments(
 
   const addWhiteboardToChat = useCallback(
     async (boardId: string) => {
+      if (RUST_DESKTOP_CORE) return;
       const board = useWhiteboardStore.getState().getBoard({
         boardId,
         workspaceIdentity,
@@ -887,7 +905,7 @@ export function useComposerAttachments(
     // 与 useWebElementContexts 等同款早退。SidePane forceMount 使非聚焦
     // 会话的 SessionPane 常驻，只有聚焦 composer（listenAddToChatEvents）才允许消费
     // add-to-chat 事件，否则同 workspace 的多个 composer 会同时注入附件。
-    if (!listenAddToChatEvents || typeof window === "undefined") return;
+    if (RUST_DESKTOP_CORE || !listenAddToChatEvents || typeof window === "undefined") return;
     const handle = (event: Event) => {
       if (!isWhiteboardAddToChatEvent(event)) return;
       if (

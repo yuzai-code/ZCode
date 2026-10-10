@@ -1,3 +1,4 @@
+import { RUST_DESKTOP_CORE } from "@/lib/rustDesktopMode.js";
 import { ContextMentionOptionContent } from "@/mentions/components/ContextMentionOptionContent.js";
 import { useFileMentionProvider } from "@/mentions/providers/fileMentionProvider.js";
 import { useSessionsMentionProvider } from "@/mentions/providers/sessionsMentionProvider.js";
@@ -62,6 +63,10 @@ export function ChatPromptActionMenu({
   showPlugins: boolean;
   excludedSlashCommandNames?: readonly string[];
 }) {
+  if (RUST_DESKTOP_CORE) {
+    attachmentAction = undefined;
+    showPlugins = false;
+  }
   const { intl } = useZCodeIntl();
   const [open, setOpen] = useState(false);
   const [quickCommands, setQuickCommands] = useState<QuickCommand[]>([]);
@@ -120,7 +125,7 @@ export function ChatPromptActionMenu({
   const attachmentCount = attachmentAction ? 1 : 0;
   const options = [
     ...(attachmentAction ? [{ disabled: false }] : []),
-    ...quickCommands.map(() => ({ disabled: false })),
+    ...(RUST_DESKTOP_CORE ? [] : quickCommands).map(() => ({ disabled: false })),
     ...mentionItems,
   ];
   const sections: MentionPanelSection[] = [
@@ -149,7 +154,7 @@ export function ChatPromptActionMenu({
               },
             ]
           : []),
-        ...quickCommands.map((command) => {
+        ...(RUST_DESKTOP_CORE ? [] : quickCommands).map((command) => {
           const { id, labelId, Icon } = QUICK_COMMANDS[command];
           const label = intl.formatMessage({ id: labelId });
           return {
@@ -227,7 +232,10 @@ export function ChatPromptActionMenu({
           // 否则会把 CLI 不会展开的裸文本发给模型。
           const emptyDraft = inputApiRef.current?.getText() === "";
           const offered = (command: QuickCommand, available: boolean) =>
-            emptyDraft && available && !excludedSlashCommandNames?.includes(command);
+            !RUST_DESKTOP_CORE &&
+            emptyDraft &&
+            available &&
+            !excludedSlashCommandNames?.includes(command);
           setQuickCommands([
             ...(offered("goal", sessionId === null) ? (["goal"] as const) : []),
             ...(offered(

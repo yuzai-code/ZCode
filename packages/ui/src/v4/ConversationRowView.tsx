@@ -1,3 +1,4 @@
+import { RUST_DESKTOP_CORE } from "@/lib/rustDesktopMode.js";
 /* oxlint-disable eslint(max-lines) -- v4 逐行 row 渲染分发集中收口（每种 row 一个 memo 叶子 + timelineMarker 分隔线），拆分会打散行类型对照。 */
 import { useIsOfficeMode } from "@/hooks/useInterfaceMode.js";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1446,7 +1447,7 @@ export const ConversationAssistantTextActions = memo(function ConversationAssist
           </MessageAction>
         </>
       ) : null}
-      {onFork && entityId ? (
+      {!RUST_DESKTOP_CORE && onFork && entityId ? (
         <MessageAction
           aria-label={forkLabel}
           label={forkLabel}

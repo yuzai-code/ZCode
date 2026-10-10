@@ -1,3 +1,4 @@
+import { RUST_DESKTOP_CORE } from "@/lib/rustDesktopMode.js";
 /* oxlint-disable eslint(max-lines) -- settings helper 聚合多个设置分组；终端、网络与自动归档多侧能力暂时超过行数限制。 */
 import type {
   IntegratedTerminalShellOption,
@@ -709,7 +710,8 @@ export function GeneralSectionContent({
               aria-label={intl.formatMessage({
                 id: "settings.askUserQuestionAutoResolution",
               })}
-              checked={askUserQuestionAutoResolutionEnabled}
+              checked={!RUST_DESKTOP_CORE && askUserQuestionAutoResolutionEnabled}
+              disabled={RUST_DESKTOP_CORE}
               data-testid={TID_SETTINGS_ASK_USER_QUESTION_AUTO_RESOLUTION_SWITCH}
               onCheckedChange={(checked) => {
                 void onAskUserQuestionAutoResolutionEnabledChange(checked);
@@ -725,7 +727,8 @@ export function GeneralSectionContent({
           control={
             <Switch
               aria-label={intl.formatMessage({ id: "settings.modelIoFullRetention" })}
-              checked={modelIoFullRetentionEnabled}
+              checked={!RUST_DESKTOP_CORE && modelIoFullRetentionEnabled}
+              disabled={RUST_DESKTOP_CORE}
               onCheckedChange={(checked) => {
                 void onModelIoFullRetentionEnabledChange(checked);
               }}

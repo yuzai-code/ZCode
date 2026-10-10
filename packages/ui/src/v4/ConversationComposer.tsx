@@ -1,3 +1,4 @@
+import { RUST_DESKTOP_CORE } from "@/lib/rustDesktopMode.js";
 /* oxlint-disable eslint(max-lines) -- composer 集中收口输入区 wiring（附件/草稿/历史/mention），拆分会打散收口粒度。 */
 import { getLocalTtftObserver } from "@/v4/telemetry/localTtftObserver.js";
 /**
@@ -2058,7 +2059,7 @@ function ConversationComposerImpl({
             onSelectThought={onSelectThought}
             onSwitchMode={onSwitchMode}
             onRecoverCustomModelSelection={onRecoverCustomModelSelection}
-            onSendCompressionCommand={onSendCompressionCommand}
+            onSendCompressionCommand={RUST_DESKTOP_CORE ? undefined : onSendCompressionCommand}
           />
         </span>
         {showStopControl ? (
@@ -2267,19 +2268,19 @@ function ConversationComposerImpl({
           enterSubmits={enterSubmits}
           onModifiedSubmit={modifiedEnterSubmits ? handleModifiedEditorSubmit : undefined}
           submitLabel={sendTooltipTitle}
-          showSlashButton
+          showSlashButton={!RUST_DESKTOP_CORE}
           // @ 是 Plugin / 文件 / 对话 / 画板主入口；# 会话与 $ / ¥ / ￥ Skills
           // 仍由 MentionPlugin 保留兼容触发，但不在 + 菜单重复展示。
-          showMentionButton
+          showMentionButton={!RUST_DESKTOP_CORE}
           topContent={topContentNode}
-          attachmentAction={attachmentAction}
+          attachmentAction={RUST_DESKTOP_CORE ? undefined : attachmentAction}
           inputTestId={TID_V4_COMPOSER_INPUT}
           inputApiRef={inputApiRef}
           promptHistory={promptHistory}
           // 命令目录必须完整来自 CLI workspace slash catalog；UI 只在
           // secondary pane 按产品能力隐藏 goal，不再追加任何内建命令或别名。
           excludedSlashCommandNames={suppressGoalCommands ? ["goal"] : undefined}
-          appSlashCommands={appSlashCommands}
+          appSlashCommands={RUST_DESKTOP_CORE ? [] : appSlashCommands}
           enableMentionPanel
           leadingActions={leadingActionsNode}
           submitControl={submitControlNode}

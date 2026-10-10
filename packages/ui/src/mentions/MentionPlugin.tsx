@@ -1,3 +1,4 @@
+import { RUST_DESKTOP_CORE } from "@/lib/rustDesktopMode.js";
 /* eslint-disable max-lines */
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import type { ZCodeProvider } from "@zcode/shared";
@@ -157,6 +158,7 @@ export function MentionPlugin({
   );
   const isOpen =
     !disabled &&
+    (!RUST_DESKTOP_CORE || activeTrigger?.trigger === "@") &&
     (activeTrigger?.trigger === "@" ||
       activeTrigger?.trigger === "$" ||
       activeTrigger?.trigger === "#");
@@ -172,7 +174,7 @@ export function MentionPlugin({
     sessionId ?? null,
     provider,
     deferredActiveQuery,
-    isOpen && isSkillTrigger,
+    isOpen && isSkillTrigger && !RUST_DESKTOP_CORE,
     false,
     intl.formatMessage({ id: "chat.mention.skills.empty" }),
     intl.formatMessage({ id: "chat.mention.skills.title" }),
@@ -193,7 +195,7 @@ export function MentionPlugin({
     workspacePath,
     workspaceIdentity,
     deferredActiveQuery,
-    isOpen && isContextTrigger && Boolean(onWhiteboardMentionSelected),
+    isOpen && isContextTrigger && Boolean(onWhiteboardMentionSelected) && !RUST_DESKTOP_CORE,
     intl.formatMessage({ id: "chat.mention.whiteboards.empty" }),
     intl.formatMessage({ id: "chat.mention.whiteboards.title" }),
   );
@@ -202,7 +204,7 @@ export function MentionPlugin({
     workspacePath,
     workspaceIdentity,
     deferredActiveQuery,
-    isOpen && (isContextTrigger || isSessionTrigger),
+    isOpen && (isContextTrigger || isSessionTrigger) && !RUST_DESKTOP_CORE,
     getSessionMentionWorkspaceScope(activeTrigger?.trigger),
     intl.formatMessage({ id: "chat.mention.sessions.empty" }),
     intl.formatMessage({ id: "chat.mention.sessions.title" }),
@@ -214,7 +216,7 @@ export function MentionPlugin({
     workspaceIdentity,
     sessionId ?? null,
     deferredActiveQuery,
-    isOpen && isContextTrigger,
+    isOpen && isContextTrigger && !RUST_DESKTOP_CORE,
     intl.formatMessage({ id: "chat.mention.plugins.empty" }),
     intl.formatMessage({ id: "chat.mention.plugins.title" }),
   );
@@ -266,7 +268,10 @@ export function MentionPlugin({
     // 产品约束：@ 固定为 Plugin → 文件 → 对话 → 画板；旧 # / $ 面板继续走
     // 原单分组 provider。这里仅重排发现入口，候选自身的 canonical markdown 不变。
     return buildVisibleMentionGroups(
-      getMentionPanelGroupOrder(activeTrigger?.trigger).map((groupId) => groupsById[groupId]),
+      (RUST_DESKTOP_CORE
+        ? ["files" as const]
+        : getMentionPanelGroupOrder(activeTrigger?.trigger)
+      ).map((groupId) => groupsById[groupId]),
     );
   }, [
     fileResult.emptyText,
