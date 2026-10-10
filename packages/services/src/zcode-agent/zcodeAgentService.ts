@@ -1,3 +1,4 @@
+import { resolveRustDesktopPreferences } from "./rustDesktopPreferences.js";
 import { requestPluginReferenceCatalog } from "#src/zcode-agent/pluginReferenceCatalogRequest.js";
 import {
   localTtftFactsSchema,
@@ -1464,6 +1465,7 @@ export function createZCodeAgentService(
             workspace: buildWorkspaceRef(params.workspace),
             preferences: {
               askUserQuestionAutoResolutionEnabled:
+                resolveRustDesktopPreferences()?.askUserQuestionAutoResolutionEnabled ??
                 params.preferences.askUserQuestionAutoResolutionEnabled,
             },
           },
@@ -1475,7 +1477,9 @@ export function createZCodeAgentService(
             {
               workspace: buildWorkspaceRef(params.workspace),
               preferences: {
-                fullRetentionEnabled: params.preferences.modelIoFullRetentionEnabled === true,
+                fullRetentionEnabled: resolveRustDesktopPreferences()
+                  ? false
+                  : params.preferences.modelIoFullRetentionEnabled === true,
               },
             },
             zcodeWorkspaceUpdateModelIoPreferencesResultSchema,
@@ -3389,6 +3393,7 @@ export function createZCodeAgentService(
       const normalizedPreferences: ZCodeAgentAppRuntimePreferences = {
         ...preferences,
         modelIoFullRetentionEnabled: preferences.modelIoFullRetentionEnabled === true,
+        ...resolveRustDesktopPreferences(),
       };
       latestAppRuntimePreferences = normalizedPreferences;
       const activeClients = [...activeClientsByWorkspaceKey.values()];
