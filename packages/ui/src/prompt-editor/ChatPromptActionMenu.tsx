@@ -125,7 +125,7 @@ export function ChatPromptActionMenu({
   const attachmentCount = attachmentAction ? 1 : 0;
   const options = [
     ...(attachmentAction ? [{ disabled: false }] : []),
-    ...(RUST_DESKTOP_CORE ? [] : quickCommands).map(() => ({ disabled: false })),
+    ...quickCommands.map(() => ({ disabled: false })),
     ...mentionItems,
   ];
   const sections: MentionPanelSection[] = [
@@ -154,7 +154,7 @@ export function ChatPromptActionMenu({
               },
             ]
           : []),
-        ...(RUST_DESKTOP_CORE ? [] : quickCommands).map((command) => {
+        ...quickCommands.map((command) => {
           const { id, labelId, Icon } = QUICK_COMMANDS[command];
           const label = intl.formatMessage({ id: labelId });
           return {
@@ -231,8 +231,10 @@ export function ChatPromptActionMenu({
           // 命令目录以 CLI catalog 为权威，catalog 缺 workflow（插件被禁用）时不提供，
           // 否则会把 CLI 不会展开的裸文本发给模型。
           const emptyDraft = inputApiRef.current?.getText() === "";
+          // TS 版 prompt-editor/ChatPromptActionMenu.tsx：goal 复用新会话空草稿入口；
+          // Rust 已接通 goal，workflow 仍未装配，不能因 catalog 误报而开放快捷入口。
           const offered = (command: QuickCommand, available: boolean) =>
-            !RUST_DESKTOP_CORE &&
+            (!RUST_DESKTOP_CORE || command !== "workflow") &&
             emptyDraft &&
             available &&
             !excludedSlashCommandNames?.includes(command);

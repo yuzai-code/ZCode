@@ -158,7 +158,7 @@ export function MentionPlugin({
   );
   const isOpen =
     !disabled &&
-    (!RUST_DESKTOP_CORE || activeTrigger?.trigger === "@") &&
+    (!RUST_DESKTOP_CORE || activeTrigger?.trigger !== "#") &&
     (activeTrigger?.trigger === "@" ||
       activeTrigger?.trigger === "$" ||
       activeTrigger?.trigger === "#");
@@ -174,7 +174,7 @@ export function MentionPlugin({
     sessionId ?? null,
     provider,
     deferredActiveQuery,
-    isOpen && isSkillTrigger && !RUST_DESKTOP_CORE,
+    isOpen && isSkillTrigger,
     false,
     intl.formatMessage({ id: "chat.mention.skills.empty" }),
     intl.formatMessage({ id: "chat.mention.skills.title" }),
@@ -267,9 +267,13 @@ export function MentionPlugin({
 
     // 产品约束：@ 固定为 Plugin → 文件 → 对话 → 画板；旧 # / $ 面板继续走
     // 原单分组 provider。这里仅重排发现入口，候选自身的 canonical markdown 不变。
+    // TS 版 mentions/providers/skillsMentionProvider.ts：Rust 已装配同一 catalog/Skill 链；
+    // 仅解除 $ 的早期门禁，仍排除未装配的 plugin/session/whiteboard。
     return buildVisibleMentionGroups(
       (RUST_DESKTOP_CORE
-        ? ["files" as const]
+        ? isSkillTrigger
+          ? ["skills" as const]
+          : ["files" as const]
         : getMentionPanelGroupOrder(activeTrigger?.trigger)
       ).map((groupId) => groupsById[groupId]),
     );
@@ -280,6 +284,7 @@ export function MentionPlugin({
     fileResult.loading,
     fileResult.title,
     activeTrigger?.trigger,
+    isSkillTrigger,
     pluginsResult.emptyText,
     pluginsResult.error,
     pluginsResult.items,

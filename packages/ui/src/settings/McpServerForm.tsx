@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select.js";
 import { useZCodeIntl } from "@/i18n/IntlProvider.js";
-import { PluginScopeMenu } from "@/settings/PluginScopeMenu.js";
+import { McpScopeMenu } from "@/settings/McpFormScopeMenu.js";
 import type { WorkspaceTabState } from "@/store/tabStore.js";
 import { SettingsFormTextarea } from "@/settings/SettingsFormTextarea.js";
 import { SettingsFormActions } from "@/settings/SettingsFormActions.js";
@@ -27,34 +27,6 @@ import {
 function McpFormFieldLabel({ children }: { children: string }) {
   return (
     <label className="mb-1 block text-ui-base font-medium text-foreground-subtle">{children}</label>
-  );
-}
-
-function McpScopeMenu({
-  disabled,
-  scopeKey,
-  workspaceTabs,
-  onChange,
-}: {
-  disabled: boolean;
-  scopeKey: string;
-  workspaceTabs: WorkspaceTabState[];
-  onChange: (scopeKey: string) => void;
-}) {
-  const { intl } = useZCodeIntl();
-  const scopeLabel = intl.formatMessage({ id: "settings.scope.label" });
-
-  return (
-    <label className="flex min-w-0 flex-wrap items-center justify-end gap-2">
-      <span className="shrink-0 text-ui-base text-foreground-subtle">{scopeLabel}</span>
-      <PluginScopeMenu
-        align="end"
-        disabled={disabled}
-        selectedScopeKey={scopeKey}
-        workspaceTabs={workspaceTabs}
-        onScopeKeyChange={onChange}
-      />
-    </label>
   );
 }
 
@@ -78,7 +50,7 @@ export function McpServerForm({
   workspaceTabs: WorkspaceTabState[];
   onScopeKeyChange: (scopeKey: string) => void;
   onEditorModeChange: (mode: McpEditorMode) => void;
-  onSave: (form: FormState, prevServer?: ZCodeMcpServer) => void;
+  onSave: (form: FormState, prevServer?: ZCodeMcpServer) => Promise<void>;
   onCancel: () => void;
   onDelete?: (server: ZCodeMcpServer) => void;
 }) {
@@ -92,10 +64,13 @@ export function McpServerForm({
   const [form, setForm] = useState<FormState>(initialForm);
   const [jsonDraft, setJsonDraft] = useState<string>(() => formToJsonDraft(initialForm));
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [showEnv, setShowEnv] = useState(false);
   const formRef = useRef(form);
   const jsonDraftRef = useRef(jsonDraft);
   const previousEditorModeRef = useRef(editorMode);
+  const savePendingRef = useRef(false);
 
   useEffect(() => {
     formRef.current = form;
@@ -143,25 +118,37 @@ export function McpServerForm({
     });
   }
 
-  function handleSaveClick() {
+  async function handleSaveClick() {
+    if (savePendingRef.current) return;
+    setSaveError(null);
+    let saveForm = form;
     if (editorMode === "json") {
       try {
-        const parsedForm = jsonDraftToForm(jsonDraft, form);
-        setForm(parsedForm);
+        saveForm = jsonDraftToForm(jsonDraft, form);
+        setForm(saveForm);
         setJsonError(null);
-
-        onSave(parsedForm, initial);
       } catch (error) {
         setJsonError(
           error instanceof Error
             ? error.message
             : intl.formatMessage({ id: "settings.mcp.form.jsonParseError" }),
         );
+        return;
       }
-      return;
     }
 
-    onSave(form, initial);
+    // TS 版 settings/McpSettingsSection.tsx 的 handleSave 是异步保存；
+    // strict 持久化失败必须在真实按钮 consumer 接住，保留输入并跳过父级成功清理。
+    savePendingRef.current = true;
+    setSaving(true);
+    try {
+      await onSave(saveForm, initial);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : String(error));
+    } finally {
+      savePendingRef.current = false;
+      setSaving(false);
+    }
   }
 
   const canSave = (() => {
@@ -394,6 +381,11 @@ export function McpServerForm({
         </div>
       )}
 
+      {saveError && (
+        <p role="alert" className="text-ui-base text-destructive">
+          {saveError}
+        </p>
+      )}
       <SettingsFormActions
         leadingAction={
           initial && onDelete ? (
@@ -410,7 +402,7 @@ export function McpServerForm({
           ) : undefined
         }
       >
-        <Button size="lg" disabled={!canSave} onClick={handleSaveClick}>
+        <Button size="lg" disabled={!canSave || saving} onClick={handleSaveClick}>
           {intl.formatMessage({ id: "common.save" })}
         </Button>
         <Button variant="ghost" size="lg" onClick={onCancel}>

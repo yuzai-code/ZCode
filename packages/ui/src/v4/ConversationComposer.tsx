@@ -2059,7 +2059,7 @@ function ConversationComposerImpl({
             onSelectThought={onSelectThought}
             onSwitchMode={onSwitchMode}
             onRecoverCustomModelSelection={onRecoverCustomModelSelection}
-            onSendCompressionCommand={RUST_DESKTOP_CORE ? undefined : onSendCompressionCommand}
+            onSendCompressionCommand={onSendCompressionCommand}
           />
         </span>
         {showStopControl ? (
@@ -2268,7 +2268,7 @@ function ConversationComposerImpl({
           enterSubmits={enterSubmits}
           onModifiedSubmit={modifiedEnterSubmits ? handleModifiedEditorSubmit : undefined}
           submitLabel={sendTooltipTitle}
-          showSlashButton={!RUST_DESKTOP_CORE}
+          showSlashButton
           // @ 是 Plugin / 文件 / 对话 / 画板主入口；# 会话与 $ / ¥ / ￥ Skills
           // 仍由 MentionPlugin 保留兼容触发，但不在 + 菜单重复展示。
           showMentionButton={!RUST_DESKTOP_CORE}

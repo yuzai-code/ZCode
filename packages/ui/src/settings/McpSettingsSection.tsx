@@ -72,6 +72,11 @@ import { ExternalLink, Import, Plus, UploadCloud } from "lucide-react";
 import { SettingsSegmentedTabs } from "@/settings/SettingsSegmentedTabs.js";
 import { formatRemoteSkillSyncTarget } from "@/settings/RemoteSkillSyncDialog.js";
 import { selectPluginsForScope } from "@/settings/pluginCapabilityProjection.js";
+import { invalidateDeferredDraftSessionForRuntimeChange } from "@/lib/zcodeDraftSkillInvalidation.js";
+import {
+  saveMcpServerAndInvalidateDraft,
+  selectMcpDraftRuntimeTargets,
+} from "@/lib/zcodeMcpDraftRuntime.js";
 
 const DEFAULT_MCP_SOURCE: ServerScope = "zcodeagentmcp";
 const MCP_OAUTH_AUTHORIZATION_STATUS_REFRESH_MS = 1_000;
@@ -1246,12 +1251,33 @@ export function McpSettingsSection({
     if (!activeWorkspacePath) {
       return;
     }
+    const capturedWorkspaceTarget = {
+      workspacePath: activeWorkspacePath,
+      workspaceIdentity: activeWorkspaceIdentity,
+      remoteSessionId,
+      remoteTarget,
+    };
+    const draftRuntimeTargets = selectMcpDraftRuntimeTargets({
+      scope: formScopeKey === "user" ? "user" : "workspace",
+      target: capturedWorkspaceTarget,
+      workspaces: workspaceTabs,
+    });
+    const capturedMcpService = services.zcodeSessionService;
+    const capturedBaseMcpService = baseServices.zcodeSessionService;
+    const capturedMcpSyncService = services.mcpSyncService;
     const loaded = await ensureLoadedForWorkspace(
       activeWorkspacePath,
       services.mcpSyncService,
       activeWorkspaceIdentity,
     );
     if (!loaded) {
+      return;
+    }
+    const loadedState = useMcpStore.getState();
+    if (
+      (loadedState.currentWorkspaceIdentity?.trim() || loadedState.currentProjectPath) !==
+      (capturedWorkspaceTarget.workspaceIdentity?.trim() || capturedWorkspaceTarget.workspacePath)
+    ) {
       return;
     }
     const config = {
@@ -1262,11 +1288,43 @@ export function McpSettingsSection({
     // currentProjectPath；保存目标必须使用表单已解析并完成加载的 workspace props。
     const projectPath = formScopeKey === "user" ? undefined : activeWorkspacePath;
 
-    if (prev) {
-      await updateScopedMcpServer(DEFAULT_MCP_SOURCE, prev.name, config, projectPath);
-    } else {
-      await addScopedMcpServer(DEFAULT_MCP_SOURCE, form.name, config, projectPath);
-    }
+    await saveMcpServerAndInvalidateDraft({
+      save: async () => {
+        if (prev) {
+          await updateScopedMcpServer(
+            DEFAULT_MCP_SOURCE,
+            prev.name,
+            config,
+            projectPath,
+            capturedMcpSyncService,
+          );
+        } else {
+          await addScopedMcpServer(
+            DEFAULT_MCP_SOURCE,
+            form.name,
+            config,
+            projectPath,
+            capturedMcpSyncService,
+          );
+        }
+      },
+      invalidateDraft: async () => {
+        await Promise.all(
+          draftRuntimeTargets.map((target) => {
+            const targetIsRemote = Boolean(
+              target.remoteSessionId || target.remoteTarget || target.workspaceIdentity?.trim(),
+            );
+            return invalidateDeferredDraftSessionForRuntimeChange({
+              logScope: "mcp",
+              reason: prev ? "mcp-updated" : "mcp-added",
+              workspaceIdentity: target.workspaceIdentity,
+              workspacePath: target.workspacePath,
+              zcodeSessionService: targetIsRemote ? capturedMcpService : capturedBaseMcpService,
+            });
+          }),
+        );
+      },
+    });
 
     setShowForm(false);
     setEditingServer(null);
